@@ -55,6 +55,7 @@ func (s *Store) AcquireNext(ctx context.Context, queue string) (*Job, error) {
 		WHERE status = 'pending' AND run_at <= now() AND queue = $1
 		ORDER BY run_at
 		LIMIT 1
+		FOR UPDATE SKIP LOCKED
 	)
 	RETURNING id, queue, payload, status, run_at, created_at`,
 	queue).Scan(&job.ID, &job.Queue, &job.Payload, &job.Status, &job.RunAt, &job.CreatedAt)
