@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -82,10 +83,20 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	
-	log.Println("starting worker on queue: default")
-	go RunWorker(ctx, store, "default")
 
+	numWorkers := 1
+
+	if n := os.Getenv("AQUEDUCT_NUM_WORKERS"); n != "" {
+		if parsed, err := strconv.Atoi(n); err == nil {
+			numWorkers = parsed   
+		}
+	}
+	
+	for i := range numWorkers {
+		log.Printf("starting worker %d on queue: default", i)
+		go RunWorker(ctx, store, "default")
+
+	}
 	
 	log.Fatal(http.ListenAndServe(":8080", mux))
 

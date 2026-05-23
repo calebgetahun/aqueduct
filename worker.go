@@ -33,7 +33,6 @@ func RunWorker(ctx context.Context, store *Store, queue string) {
 				log.Printf("marked job complete: %d", job.ID)
 			}
 		
-			
 		}
 	}
 }
