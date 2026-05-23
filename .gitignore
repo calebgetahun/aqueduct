@@ -1,0 +1,11 @@
+*.exe
+*.test
+*.out
+.env
+*.env
+.envrc
+.idea/
+.vscode/
+bin/
+tmp/
+aqueduct
