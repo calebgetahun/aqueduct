@@ -16,10 +16,10 @@ type server struct {
 }
 
 type createJobRequest struct {
-	Queue		string				`json:"queue"`
-	Payload		json.RawMessage		`json:"payload"`
+	Queue			string				`json:"queue"`
+	Payload			json.RawMessage		`json:"payload"`
+	MaxAttempts 	*int					`json:"max_attempts"`
 }
-
 
 func (s *server) createJob(w http.ResponseWriter, r *http.Request) {
 	var req createJobRequest
@@ -38,7 +38,16 @@ func (s *server) createJob(w http.ResponseWriter, r *http.Request) {
 		req.Queue = "default"
 	}
 
-	job, err := s.store.Enqueue(r.Context(), req.Queue, req.Payload)
+	defaultAttempts := 3
+
+	if req.MaxAttempts == nil {
+		req.MaxAttempts = &defaultAttempts
+	} else if *req.MaxAttempts <= 0 {
+		http.Error(w, "invalid max attempts", http.StatusBadRequest)
+		return
+	}
+
+	job, err := s.store.Enqueue(r.Context(), req.Queue, req.Payload, req.MaxAttempts)
 
 	if err != nil {
 		log.Printf("enqueue: %v", err)
