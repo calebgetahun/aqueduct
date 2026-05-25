@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -106,7 +107,25 @@ func main() {
 		go RunWorker(ctx, store, "default")
 
 	}
-	
+
+	reaperInterval := time.Minute
+	visibilityTimeout := 30 * time.Second
+
+	if rI := os.Getenv("AQUEDUCT_REAPER_INTERVAL"); rI != "" {
+		if parsed, err := strconv.Atoi(rI); err == nil {
+			reaperInterval = time.Duration(parsed) * time.Second
+		}
+	}
+
+	if vT := os.Getenv("AQUEDUCT_VISIBILITY_TIMEOUT"); vT != "" {
+		if parsed, err := strconv.Atoi(vT); err == nil {
+			visibilityTimeout = time.Duration(parsed) * time.Second
+		}
+	}
+
+	log.Println("starting reaper")
+	go RunReaper(ctx, store, visibilityTimeout, reaperInterval)
+
 	log.Fatal(http.ListenAndServe(":8080", mux))
 
 }

@@ -2,7 +2,7 @@
 
 A Postgres-backed distributed task queue with Go workers and polyglot operations via a Postgres function API.
 
-**Status:** v0.4 (in development). Retries with exponential backoff implemented. Working toward v0.5 — stuck job reaping.
+**Status:** v0.5 (in development). Stuck job reaping with configurable visibility timeout implemented. Working toward v0.6 — partial indexes, stress test, EXPLAIN analysis.
 
 ## Architecture
 

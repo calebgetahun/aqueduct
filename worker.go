@@ -31,14 +31,14 @@ func RunWorker(ctx context.Context, store *Store, queue string) {
 			log.Printf("acquired job %d from queue %s", job.ID, job.Queue)
 
 			if rand.IntN(2) == 0 {
-				//success
+				// success
 				if err := store.MarkCompleted(ctx, job.ID); err != nil {
 					log.Printf("markComplete job %d: %v", job.ID, err)
 				} else {
 					log.Printf("completed job: %d", job.ID)
 				}
 			} else {
-				//failure
+				// failure
 				window := math.Min(30, math.Pow(2, float64(job.Attempts)))
 				jitter := time.Duration(rand.Float64() * float64(window) * float64(time.Second))
 				runAt := time.Now().Add(jitter)
@@ -50,6 +50,33 @@ func RunWorker(ctx context.Context, store *Store, queue string) {
 				}
 			}
 		
+		}
+	}
+}
+
+func RunReaper(ctx context.Context, store *Store, visibilityTimeout time.Duration, reaperInterval time.Duration) {
+	ticker := time.NewTicker(reaperInterval)
+
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		
+		case <-ticker.C:
+			reapedCount, err := store.ReapStuck(ctx, visibilityTimeout)
+
+			if err != nil {
+				log.Printf("reapStuck: %v", err)
+				continue
+			}
+
+			if reapedCount > 0 {
+				log.Printf("reaped %d stuck jobs", reapedCount)	
+			}
+			
+			
 		}
 	}
 }

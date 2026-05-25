@@ -20,6 +20,7 @@ type Job struct {
 	Attempts	int				`json:"attempts"`
 	RunAt     	time.Time       `json:"run_at"`
 	CreatedAt 	time.Time       `json:"created_at"`
+	LockedAt	*time.Time		`json:"locked_at"`
 }
 
 type Store struct {
@@ -50,7 +51,7 @@ func (s *Store) AcquireNext(ctx context.Context, queue string) (*Job, error) {
 
 	err := s.db.QueryRow(ctx,
 	`UPDATE jobs 
-	SET status = 'running' 
+	SET status = 'running', locked_at = now()
 	WHERE id = (
 		SELECT id
 		FROM jobs
@@ -59,8 +60,8 @@ func (s *Store) AcquireNext(ctx context.Context, queue string) (*Job, error) {
 		LIMIT 1
 		FOR UPDATE SKIP LOCKED
 	)
-	RETURNING id, queue, payload, status, max_attempts, attempts, run_at, created_at`,
-	queue).Scan(&job.ID, &job.Queue, &job.Payload, &job.Status, &job.MaxAttempts, &job.Attempts, &job.RunAt, &job.CreatedAt)
+	RETURNING id, queue, payload, status, max_attempts, attempts, run_at, created_at, locked_at`,
+	queue).Scan(&job.ID, &job.Queue, &job.Payload, &job.Status, &job.MaxAttempts, &job.Attempts, &job.RunAt, &job.CreatedAt, &job.LockedAt)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
@@ -101,4 +102,29 @@ func (s *Store) MarkFailed(ctx context.Context, id int64, runAt time.Time) error
 	`, id, runAt)
 
 	return err
+}
+
+func (s *Store) ReapStuck(ctx context.Context, visibilityTimeout time.Duration) (int64, error) {
+	tag, err := s.db.Exec(ctx,
+	`UPDATE jobs
+	SET
+		attempts = attempts + 1,
+		status = CASE
+			WHEN attempts + 1 >= max_attempts THEN 'dead'
+			ELSE 'pending'
+		END,
+		run_at = CASE
+			WHEN attempts + 1 >= max_attempts THEN run_at
+			ELSE now() + (random() * pow(2, attempts + 1)) * interval '1 second'
+		END
+	WHERE status = 'running' AND locked_at <= now() - ($1 * interval '1 second')
+	`, visibilityTimeout.Seconds())
+
+	if err != nil {
+		return 0, err
+	}
+
+	rowsReaped := tag.RowsAffected()
+
+	return rowsReaped, nil
 }
