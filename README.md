@@ -2,7 +2,7 @@
 
 A Postgres-backed distributed task queue with Go workers and polyglot operations via a Postgres function API.
 
-**Status:** v0.5 (in development). Stuck job reaping with configurable visibility timeout implemented. Working toward v0.6 — partial indexes, stress test, EXPLAIN analysis.
+**Status:** v0.6 (in development). Partial indexes added, 735x query speedup measured at 1M rows. Working toward v0.7 — PL/pgSQL function API.
 
 ## Architecture
 
@@ -33,6 +33,7 @@ docker run --name pg-aqueduct -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=aqued
 docker exec -i pg-aqueduct psql -U postgres -d aqueduct < sql/001_initial_schema.sql
 docker exec -i pg-aqueduct psql -U postgres -d aqueduct < sql/002_add_retries.sql
 docker exec -i pg-aqueduct psql -U postgres -d aqueduct < sql/003_add_locked_at.sql
+docker exec -i pg-aqueduct psql -U postgres -d aqueduct < sql/004_add_indexes.sql
 
 AQUEDUCT_DATABASE_URL="postgres://postgres:postgres@localhost:5434/aqueduct" go run .
 ```
@@ -47,6 +48,20 @@ All configuration is via environment variables.
 | `AQUEDUCT_NUM_WORKERS` | `1` | Number of concurrent workers |
 | `AQUEDUCT_VISIBILITY_TIMEOUT` | `30` | Seconds before a running job is considered stuck |
 | `AQUEDUCT_REAPER_INTERVAL` | `60` | Seconds between stuck job reaper runs |
+
+## Performance
+
+Tested against a table of 1,000,000 jobs using `EXPLAIN ANALYZE` on the `AcquireNext` query.
+
+| | Before index | After partial index |
+| --- | --- | --- |
+| Scan type | Sequential scan (1,000,011 rows) | Index scan |
+| Execution time | 69.750ms | 0.095ms |
+| Speedup | | ~735x |
+
+The partial index `jobs_pending_queue_run_at` indexes only `pending` rows on `(queue, run_at)`, eliminating the sequential scan entirely. Completed and dead jobs are excluded from the index, keeping it small as the table grows.
+
+A second partial index `jobs_running_locked_at` on `(locked_at)` where `status = 'running'` optimizes the stuck job reaper query, which scans for jobs that have been running past the visibility timeout.
 
 ## Milestone plan
 
