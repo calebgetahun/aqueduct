@@ -2,7 +2,7 @@
 
 A Postgres-backed distributed task queue with Go workers and polyglot operations via a Postgres function API.
 
-**Status:** v0.1 (in development). Single worker, polling, no LISTEN/NOTIFY, no stored functions yet. Iterating toward v1.0 — see milestone plan below.
+**Status:** v0.4 (in development). Retries with exponential backoff implemented. Working toward v0.5 — stuck job reaping.
 
 ## Architecture
 
