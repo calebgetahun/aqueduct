@@ -24,16 +24,29 @@ Workers are Go-only and run user-registered handlers concurrently via goroutines
 - Throughput beyond ~5-10k jobs/sec on single Postgres (use Kafka/NATS)
 - Drop-in Celery replacement for all-Python shops (use PGQueuer)
 
-## Run (v0.1)
+## Run
 
 ```bash
 docker run --name pg-aqueduct -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=aqueduct \
   -p 5434:5432 -v pg-aqueduct-data:/var/lib/postgresql/data -d postgres:17
 
 docker exec -i pg-aqueduct psql -U postgres -d aqueduct < sql/001_initial_schema.sql
+docker exec -i pg-aqueduct psql -U postgres -d aqueduct < sql/002_add_retries.sql
+docker exec -i pg-aqueduct psql -U postgres -d aqueduct < sql/003_add_locked_at.sql
 
 AQUEDUCT_DATABASE_URL="postgres://postgres:postgres@localhost:5434/aqueduct" go run .
 ```
+
+## Configuration
+
+All configuration is via environment variables.
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `AQUEDUCT_DATABASE_URL` | required | Postgres connection string |
+| `AQUEDUCT_NUM_WORKERS` | `1` | Number of concurrent workers |
+| `AQUEDUCT_VISIBILITY_TIMEOUT` | `30` | Seconds before a running job is considered stuck |
+| `AQUEDUCT_REAPER_INTERVAL` | `60` | Seconds between stuck job reaper runs |
 
 ## Milestone plan
 
