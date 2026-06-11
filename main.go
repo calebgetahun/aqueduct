@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"os"
@@ -19,7 +20,8 @@ type server struct {
 type createJobRequest struct {
 	Queue			string				`json:"queue"`
 	Payload			json.RawMessage		`json:"payload"`
-	MaxAttempts 	*int					`json:"max_attempts"`
+	MaxAttempts 	*int				`json:"max_attempts"`
+	RunAt			*time.Time			`json:"run_at"`
 }
 
 func (s *server) createJob(w http.ResponseWriter, r *http.Request) {
@@ -48,7 +50,7 @@ func (s *server) createJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	job, err := s.store.Enqueue(r.Context(), req.Queue, req.Payload, req.MaxAttempts)
+	job, err := s.store.Enqueue(r.Context(), req.Queue, req.Payload, req.MaxAttempts, req.RunAt)
 
 	if err != nil {
 		log.Printf("enqueue: %v", err)
@@ -63,6 +65,33 @@ func (s *server) createJob(w http.ResponseWriter, r *http.Request) {
 		log.Printf("encoding: %v", err)
 	}
 
+}
+
+func (s *server) deleteJob(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("job_id")
+	idNum, err := strconv.Atoi(idStr)
+
+	if err != nil {
+		http.Error(w, "invalid job id", http.StatusBadRequest)
+		return
+	}
+
+	err = s.store.CancelJob(r.Context(), int64(idNum))
+
+	if errors.Is(err, ErrJobNotFound) {
+		http.Error(w, "job not found or cancellable", http.StatusNotFound)
+		return
+	}
+
+	if err != nil {
+		log.Printf("cancelJob: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("cancelled job %d", idNum)
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func main() {
@@ -90,6 +119,7 @@ func main() {
 	server := &server{store: store}
 	
 	mux.HandleFunc("POST /jobs", server.createJob)
+	mux.HandleFunc("DELETE /jobs/{job_id}", server.deleteJob)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

@@ -34,6 +34,7 @@ docker exec -i pg-aqueduct psql -U postgres -d aqueduct < sql/001_initial_schema
 docker exec -i pg-aqueduct psql -U postgres -d aqueduct < sql/002_add_retries.sql
 docker exec -i pg-aqueduct psql -U postgres -d aqueduct < sql/003_add_locked_at.sql
 docker exec -i pg-aqueduct psql -U postgres -d aqueduct < sql/004_add_indexes.sql
+docker exec -i pg-aqueduct psql -U postgres -d aqueduct < sql/005_add_lock_token.sql
 
 AQUEDUCT_DATABASE_URL="postgres://postgres:postgres@localhost:5434/aqueduct" go run .
 ```

@@ -32,7 +32,7 @@ func RunWorker(ctx context.Context, store *Store, queue string) {
 
 			if rand.IntN(2) == 0 {
 				// success
-				if err := store.MarkCompleted(ctx, job.ID); err != nil {
+				if err := store.MarkCompleted(ctx, job.ID, job.LockToken); err != nil {
 					log.Printf("markComplete job %d: %v", job.ID, err)
 				} else {
 					log.Printf("completed job: %d", job.ID)
@@ -43,7 +43,7 @@ func RunWorker(ctx context.Context, store *Store, queue string) {
 				jitter := time.Duration(rand.Float64() * float64(window) * float64(time.Second))
 				runAt := time.Now().Add(jitter)
 
-				if err := store.MarkFailed(ctx, job.ID, runAt); err != nil {
+				if err := store.MarkFailed(ctx, job.ID, job.LockToken, runAt); err != nil {
 					log.Printf("markFailed job %d: %v", job.ID, err)
 				} else {
 					log.Printf("failed job %d, attempts %d, next run_at %s", job.ID, job.Attempts, runAt)
