@@ -2,7 +2,7 @@
 
 A Postgres-backed distributed task queue with Go workers and polyglot operations via a Postgres function API.
 
-**Status:** v0.7. Core operations extracted into PL/pgSQL functions; retry backoff now computed on the DB clock. Working toward v0.8 — LISTEN/NOTIFY for low-latency dispatch.
+**Status:** v0.8. LISTEN/NOTIFY implemented; workers wake instantly on enqueue with a 30s fallback poll for reliability. Working toward v0.9 — Python client demonstrating polyglot operations.
 
 ## Architecture
 
@@ -74,7 +74,7 @@ A second partial index `jobs_running_locked_at` on `(locked_at)` where `status =
 - **v0.5** — stuck job reaping via visibility timeout
 - **v0.6** — partial indexes, stress test, EXPLAIN before/after, fencing tokens, idempotency checks
 - **v0.7** — extract operations into PL/pgSQL functions, retry backoff on DB clock
-- **v0.8** — LISTEN/NOTIFY for low-latency dispatch
+- **v0.8** — LISTEN/NOTIFY for low-latency dispatch, 30s fallback poll
 - **v0.9** — Python client demonstrating polyglot operations
 - **v0.10** — graceful shutdown
 - **v1.0** — observability views, benchmarks, ship

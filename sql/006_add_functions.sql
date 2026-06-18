@@ -18,6 +18,8 @@ BEGIN
     INSERT INTO jobs (queue, payload, max_attempts, run_at)
     VALUES (p_queue, p_payload, p_max_attempts, COALESCE(p_run_at, now()))
     RETURNING jobs.id, jobs.queue, jobs.payload, jobs.status, jobs.max_attempts, jobs.attempts, jobs.run_at, jobs.created_at;
+
+    PERFORM pg_notify('aqueduct_jobs', p_queue);
 END;
 $$;
 

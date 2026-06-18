@@ -132,10 +132,12 @@ func main() {
 		}
 	}
 	
+	notify := make(chan string, numWorkers)
+	go RunListener(ctx, pool, notify)
+
 	for i := range numWorkers {
 		log.Printf("starting worker %d on queue: default", i)
-		go RunWorker(ctx, store, "default")
-
+		go RunWorker(ctx, store, "default", notify)
 	}
 
 	reaperInterval := time.Minute
