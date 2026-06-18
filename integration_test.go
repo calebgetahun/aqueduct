@@ -274,6 +274,10 @@ func TestMarkFailed_DeadAtMaxAttempts(t *testing.T) {
 		if err := testStore.MarkFailed(context.Background(), job.ID, job.LockToken); err != nil {
 			t.Fatalf("MarkFailed: %v", err)
 		}
+		// Backoff is now DB-computed and always >= now(); reset run_at so the job
+		// is immediately re-acquirable for the next iteration.
+		_, _ = testStore.db.Exec(context.Background(),
+			`UPDATE jobs SET run_at = now() - interval '1 second' WHERE id = $1`, job.ID)
 	}
 
 	row := queryJob(t, 1)
