@@ -189,7 +189,7 @@ func TestFencingToken_ZombieFailIsNoOp(t *testing.T) {
 	}
 
 	// Zombie worker 1 tries to mark the job failed.
-	if err := testStore.MarkFailed(context.Background(), worker1Job.ID, staleToken, time.Now().Add(time.Second)); err != nil {
+	if err := testStore.MarkFailed(context.Background(), worker1Job.ID, staleToken); err != nil {
 		t.Fatalf("MarkFailed: %v", err)
 	}
 
@@ -208,12 +208,11 @@ func TestMarkFailed_IdempotentOnDoubleCall(t *testing.T) {
 	enqueue(t, "default", 3)
 
 	job := acquireNext(t, "default")
-	runAt := time.Now().Add(-time.Second)
 
-	if err := testStore.MarkFailed(context.Background(), job.ID, job.LockToken, runAt); err != nil {
+	if err := testStore.MarkFailed(context.Background(), job.ID, job.LockToken); err != nil {
 		t.Fatalf("first MarkFailed: %v", err)
 	}
-	if err := testStore.MarkFailed(context.Background(), job.ID, job.LockToken, runAt); err != nil {
+	if err := testStore.MarkFailed(context.Background(), job.ID, job.LockToken); err != nil {
 		t.Fatalf("second MarkFailed: %v", err)
 	}
 
@@ -229,7 +228,7 @@ func TestMarkCompleted_NoOpIfNotRunning(t *testing.T) {
 	enqueue(t, "default", 3)
 
 	job := acquireNext(t, "default")
-	if err := testStore.MarkFailed(context.Background(), job.ID, job.LockToken, time.Now().Add(-time.Second)); err != nil {
+	if err := testStore.MarkFailed(context.Background(), job.ID, job.LockToken); err != nil {
 		t.Fatalf("MarkFailed: %v", err)
 	}
 	// Job is now pending. MarkCompleted with same token must not complete it.
@@ -249,7 +248,7 @@ func TestMarkFailed_IncrementsAttempts(t *testing.T) {
 	enqueue(t, "default", 3)
 
 	job := acquireNext(t, "default")
-	if err := testStore.MarkFailed(context.Background(), job.ID, job.LockToken, time.Now().Add(time.Second)); err != nil {
+	if err := testStore.MarkFailed(context.Background(), job.ID, job.LockToken); err != nil {
 		t.Fatalf("MarkFailed: %v", err)
 	}
 
@@ -272,7 +271,7 @@ func TestMarkFailed_DeadAtMaxAttempts(t *testing.T) {
 		if job == nil {
 			t.Fatal("expected to acquire job")
 		}
-		if err := testStore.MarkFailed(context.Background(), job.ID, job.LockToken, time.Now().Add(-time.Second)); err != nil {
+		if err := testStore.MarkFailed(context.Background(), job.ID, job.LockToken); err != nil {
 			t.Fatalf("MarkFailed: %v", err)
 		}
 	}

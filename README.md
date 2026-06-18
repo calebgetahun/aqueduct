@@ -2,7 +2,7 @@
 
 A Postgres-backed distributed task queue with Go workers and polyglot operations via a Postgres function API.
 
-**Status:** v0.6 (in development). Partial indexes added, 735x query speedup measured at 1M rows. Working toward v0.7 — PL/pgSQL function API.
+**Status:** v0.7. Core operations extracted into PL/pgSQL functions; retry backoff now computed on the DB clock. Working toward v0.8 — LISTEN/NOTIFY for low-latency dispatch.
 
 ## Architecture
 
@@ -35,6 +35,7 @@ docker exec -i pg-aqueduct psql -U postgres -d aqueduct < sql/002_add_retries.sq
 docker exec -i pg-aqueduct psql -U postgres -d aqueduct < sql/003_add_locked_at.sql
 docker exec -i pg-aqueduct psql -U postgres -d aqueduct < sql/004_add_indexes.sql
 docker exec -i pg-aqueduct psql -U postgres -d aqueduct < sql/005_add_lock_token.sql
+docker exec -i pg-aqueduct psql -U postgres -d aqueduct < sql/006_add_functions.sql
 
 AQUEDUCT_DATABASE_URL="postgres://postgres:postgres@localhost:5434/aqueduct" go run .
 ```
@@ -71,8 +72,8 @@ A second partial index `jobs_running_locked_at` on `(locked_at)` where `status =
 - **v0.3** — fix race with FOR UPDATE SKIP LOCKED
 - **v0.4** — retries with exponential backoff + jitter
 - **v0.5** — stuck job reaping via visibility timeout
-- **v0.6** — partial indexes, stress test, EXPLAIN before/after
-- **v0.7** — extract operations into PL/pgSQL functions
+- **v0.6** — partial indexes, stress test, EXPLAIN before/after, fencing tokens, idempotency checks
+- **v0.7** — extract operations into PL/pgSQL functions, retry backoff on DB clock
 - **v0.8** — LISTEN/NOTIFY for low-latency dispatch
 - **v0.9** — Python client demonstrating polyglot operations
 - **v0.10** — graceful shutdown
