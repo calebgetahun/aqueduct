@@ -11,6 +11,8 @@ import (
 )
 
 var testStore *Store
+var producerPool *pgxpool.Pool
+var workerPool *pgxpool.Pool
 
 func TestMain(m *testing.M) {
 	dsn := os.Getenv("AQUEDUCT_DATABASE_URL")
@@ -23,8 +25,23 @@ func TestMain(m *testing.M) {
 		panic("connect to test db: " + err.Error())
 	}
 	defer pool.Close()
-
 	testStore = &Store{db: pool}
+
+	// Optional: only the permission tests in permissions_test.go need these.
+	// Tests that rely on them skip themselves if the env vars aren't set.
+	if producerDSN := os.Getenv("AQUEDUCT_PRODUCER_DATABASE_URL"); producerDSN != "" {
+		if p, err := pgxpool.New(context.Background(), producerDSN); err == nil {
+			producerPool = p
+			defer p.Close()
+		}
+	}
+	if workerDSN := os.Getenv("AQUEDUCT_WORKER_DATABASE_URL"); workerDSN != "" {
+		if p, err := pgxpool.New(context.Background(), workerDSN); err == nil {
+			workerPool = p
+			defer p.Close()
+		}
+	}
+
 	os.Exit(m.Run())
 }
 

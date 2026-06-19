@@ -1,1 +1,6 @@
+export AQUEDUCT_PRODUCER_DATABASE_URL="postgres://aqueduct_producer:changeme@localhost:5434/aqueduct"
+export AQUEDUCT_WORKER_DATABASE_URL="postgres://aqueduct_worker:changeme@localhost:5434/aqueduct"
+
+# Superuser connection, used only by the integration test suite for fixture
+# setup/assertions that bypass the function API on purpose. Never used by the app itself.
 export AQUEDUCT_DATABASE_URL="postgres://postgres:postgres@localhost:5434/aqueduct"

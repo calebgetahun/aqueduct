@@ -112,6 +112,27 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION inspect_job(
+    p_id BIGINT
+) RETURNS TABLE (
+    id           BIGINT,
+    queue        TEXT,
+    payload      JSONB,
+    status       TEXT,
+    max_attempts INT,
+    attempts     INT,
+    run_at       TIMESTAMPTZ,
+    created_at   TIMESTAMPTZ,
+    locked_at    TIMESTAMPTZ
+) LANGUAGE plpgsql AS $$
+BEGIN
+    RETURN QUERY
+    SELECT jobs.id, jobs.queue, jobs.payload, jobs.status, jobs.max_attempts, jobs.attempts, jobs.run_at, jobs.created_at, jobs.locked_at
+    FROM jobs
+    WHERE jobs.id = p_id;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION cancel_job(
     p_id BIGINT
 ) RETURNS BOOLEAN LANGUAGE plpgsql AS $$

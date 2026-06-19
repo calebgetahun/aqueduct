@@ -36,8 +36,14 @@ docker exec -i pg-aqueduct psql -U postgres -d aqueduct < sql/003_add_locked_at.
 docker exec -i pg-aqueduct psql -U postgres -d aqueduct < sql/004_add_indexes.sql
 docker exec -i pg-aqueduct psql -U postgres -d aqueduct < sql/005_add_lock_token.sql
 docker exec -i pg-aqueduct psql -U postgres -d aqueduct < sql/006_add_functions.sql
+docker exec -i pg-aqueduct psql -U postgres -d aqueduct < sql/007_add_job_mutation_functions.sql
+docker exec -i pg-aqueduct psql -U postgres -d aqueduct < sql/008_add_client_roles.sql
 
-AQUEDUCT_DATABASE_URL="postgres://postgres:postgres@localhost:5434/aqueduct" go run .
+docker exec -i pg-aqueduct psql -U postgres -d aqueduct -c "ALTER ROLE aqueduct_producer WITH PASSWORD 'producer'; ALTER ROLE aqueduct_worker WITH PASSWORD 'worker';"
+
+AQUEDUCT_PRODUCER_DATABASE_URL="postgres://aqueduct_producer:producer@localhost:5434/aqueduct" \
+AQUEDUCT_WORKER_DATABASE_URL="postgres://aqueduct_worker:worker@localhost:5434/aqueduct" \
+go run .
 ```
 
 ## Configuration
@@ -46,7 +52,8 @@ All configuration is via environment variables.
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `AQUEDUCT_DATABASE_URL` | required | Postgres connection string |
+| `AQUEDUCT_PRODUCER_DATABASE_URL` | required | Postgres connection string, connected as `aqueduct_producer` (used by the HTTP API) |
+| `AQUEDUCT_WORKER_DATABASE_URL` | required | Postgres connection string, connected as `aqueduct_worker` (used by workers and the reaper) |
 | `AQUEDUCT_NUM_WORKERS` | `1` | Number of concurrent workers |
 | `AQUEDUCT_VISIBILITY_TIMEOUT` | `30` | Seconds before a running job is considered stuck |
 | `AQUEDUCT_REAPER_INTERVAL` | `60` | Seconds between stuck job reaper runs |

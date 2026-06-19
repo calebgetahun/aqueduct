@@ -95,29 +95,44 @@ func (s *server) deleteJob(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	dsn := os.Getenv("AQUEDUCT_DATABASE_URL")
+	producerDSN := os.Getenv("AQUEDUCT_PRODUCER_DATABASE_URL")
+	workerDSN := os.Getenv("AQUEDUCT_WORKER_DATABASE_URL")
 
-	if dsn == "" {
-		log.Fatal("AQUEDUCT_DATABASE_URL is required")
+	if producerDSN == "" {
+		log.Fatal("AQUEDUCT_PRODUCER_DATABASE_URL is required")
+	}
+	if workerDSN == "" {
+		log.Fatal("AQUEDUCT_WORKER_DATABASE_URL is required")
 	}
 
 	bgCtx := context.Background()
-	pool, err := pgxpool.New(bgCtx, dsn)
-	if err != nil {
-		log.Fatalf("connect to db: %v", err)
-	}
-	defer pool.Close()
 
-	if err := pool.Ping(bgCtx); err != nil {
-		log.Fatalf("ping db: %v", err)
+	producerPool, err := pgxpool.New(bgCtx, producerDSN)
+	if err != nil {
+		log.Fatalf("connect to db as producer: %v", err)
+	}
+	defer producerPool.Close()
+
+	workerPool, err := pgxpool.New(bgCtx, workerDSN)
+	if err != nil {
+		log.Fatalf("connect to db as worker: %v", err)
+	}
+	defer workerPool.Close()
+
+	if err := producerPool.Ping(bgCtx); err != nil {
+		log.Fatalf("ping db as producer: %v", err)
+	}
+	if err := workerPool.Ping(bgCtx); err != nil {
+		log.Fatalf("ping db as worker: %v", err)
 	}
 
 	log.Println("connected to DB")
 
 	mux := http.NewServeMux()
-	store := &Store{db: pool}
-	server := &server{store: store}
-	
+	producerStore := &Store{db: producerPool}
+	workerStore := &Store{db: workerPool}
+	server := &server{store: producerStore}
+
 	mux.HandleFunc("POST /jobs", server.createJob)
 	mux.HandleFunc("DELETE /jobs/{job_id}", server.deleteJob)
 
@@ -128,16 +143,16 @@ func main() {
 
 	if n := os.Getenv("AQUEDUCT_NUM_WORKERS"); n != "" {
 		if parsed, err := strconv.Atoi(n); err == nil {
-			numWorkers = parsed   
+			numWorkers = parsed
 		}
 	}
-	
+
 	notify := make(chan string, numWorkers)
-	go RunListener(ctx, pool, notify)
+	go RunListener(ctx, workerPool, notify)
 
 	for i := range numWorkers {
 		log.Printf("starting worker %d on queue: default", i)
-		go RunWorker(ctx, store, "default", notify)
+		go RunWorker(ctx, workerStore, "default", notify)
 	}
 
 	reaperInterval := time.Minute
@@ -156,7 +171,7 @@ func main() {
 	}
 
 	log.Println("starting reaper")
-	go RunReaper(ctx, store, visibilityTimeout, reaperInterval)
+	go RunReaper(ctx, workerStore, visibilityTimeout, reaperInterval)
 
 	log.Fatal(http.ListenAndServe(":8080", mux))
 
